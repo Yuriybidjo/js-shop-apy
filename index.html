@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modules in JS</title>
+    <!-- Remixicon CDN -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <script src="./main.js" type="module"></script>
+  </head>
+  <body>
+    <div class="grid-layout">
+      <!-- Верхня панель з кошиком та кнопкою Адміна -->
+      <div
+        class="top-bar"
+        style="display: flex; gap: 15px; margin-bottom: 25px"
+      >
+        <!-- Наш кошик (який ми вже створили раніше) -->
+        <div
+          id="cart-indicator"
+          class="cart-indicator"
+          title="Натисніть, щоб відкрити кошик"
+        >
+          <div class="cart-indicator-clickable">
+            <i class="ri-shopping-cart-line cart-icon"></i>
+            <span
+              >Товарів у кошику: <span id="cart-count">0</span> | На суму:
+              <span id="cart-total">0</span> ₴</span
+            >
+            <i class="ri-arrow-down-s-line arrow-icon"></i>
+          </div>
+          <button id="clear-cart-btn" class="clear-cart-btn">
+            Очистити кошик
+          </button>
+        </div>
+
+        <!-- Нова кнопка перемикання режиму -->
+        <button id="admin-toggle-btn" class="admin-toggle-btn">
+          <i class="ri-user-settings-line"></i> Режим адміна
+        </button>
+      </div>
+
+      <h1 class="heading">
+         Крок 1: Організація коду (Модульність)
+      </h1>
+
+      <p>
+        Браузери вже давно вміють працювати з модулями напряму, тому нам не потрібні складні збирачі на кшталт Webpack чи Vite. Достатньо лише трішки змінити підключення скрипту в HTML та розбити код.
+      </p>
+
+      <section class="section">
+        <!-- Форма додавання нового товару -->
+        <div
+          id="admin-form-container"
+          class="form-container"
+          style="display: none"
+        >
+          <h2>Додати новий товар</h2>
+          <form id="add-product-form">
+            <input
+              type="text"
+              id="new-name"
+              placeholder="Назва товару"
+              required
+            />
+            <input
+              type="number"
+              id="new-price"
+              placeholder="Ціна в ₴"
+              required
+              min="1"
+              step="1"
+            />
+            <input
+              type="url"
+              id="new-img"
+              placeholder="URL зображення"
+              required
+            />
+            <button type="submit" class="add-btn">Додати на вітрину</button>
+          </form>
+        </div>
+        <!-- Новий блок для пошуку товарів -->
+        <div class="search-container" style="width: 100%; margin-bottom: 20px">
+          <div style="position: relative; display: flex; align-items: center">
+            <i
+              class="ri-search-line"
+              style="
+                position: absolute;
+                left: 15px;
+                color: #888;
+                font-size: 1.2rem;
+              "
+            ></i>
+            <input
+              type="text"
+              id="search-input"
+              placeholder="Пошук товарів на вітрині..."
+              style="
+                width: 100%;
+                padding: 12px 12px 12px 45px;
+                border: 2px solid var(--color5);
+                border-radius: 8px;
+                font-family: inherit;
+                font-size: 1rem;
+                outline: none;
+                font-weight: 500;
+              "
+            />
+          </div>
+        </div>
+
+        <!-- Контейнер для товарів -->
+        <div id="products-grid" class="grid-container"></div>
+      </section>
+    </div>
+    <!-- Оновлений тег template внизу сторінки -->
+    <template id="product-card-template">
+      <div class="product-card">
+        <img src="" alt="" class="product-img" />
+        <h3 class="product-title" contenteditable="true"></h3>
+        <p class="product-price" contenteditable="true"></p>
+        <div class="card-actions">
+          <!-- Стиль display: none ВИДАЛЕНО -->
+          <button class="buy-btn">Купити</button>
+          <button class="delete-btn">Видалити</button>
+        </div>
+      </div>
+    </template>
+
+    <!-- Контейнер модального вікна -->
+    <div id="cart-modal" class="modal-overlay" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Ваш кошик</h2>
+          <button id="close-modal-btn" class="close-btn">&times;</button>
+        </div>
+
+        <!-- БЛОК 1: Список товарів (активний спочатку) -->
+        <div id="modal-cart-main-block">
+          <div id="modal-cart-items" class="modal-cart-items"></div>
+          <div
+            class="modal-footer"
+            style="
+              border-top: 2px solid var(--color5);
+              padding-top: 15px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            "
+          >
+            <div class="modal-total">
+              Загалом: <span id="modal-total-sum">0</span> ₴
+            </div>
+            <button id="checkout-btn" class="checkout-btn">
+              Оформити замовлення
+            </button>
+          </div>
+        </div>
+
+        <!-- БЛОК 2: Форма оформлення (прихована за замовчуванням) -->
+        <div id="modal-checkout-block" style="display: none">
+          <p style="margin-bottom: 15px; font-weight: 500; color: #555">
+            Будь ласка, введіть ваші дані для підтвердження замовлення:
+          </p>
+          <form
+            id="order-form"
+            style="display: flex; flex-direction: column; gap: 12px"
+          >
+            <input
+              type="text"
+              id="customer-name"
+              placeholder="Ваше ім'я"
+              required
+              style="
+                padding: 10px;
+                border: 1px solid var(--color5);
+                border-radius: 6px;
+                font-family: inherit;
+                font-size: 1rem;
+              "
+            />
+            <input
+              type="tel"
+              id="customer-phone"
+              placeholder="Номер телефону"
+              required
+              style="
+                padding: 10px;
+                border: 1px solid var(--color5);
+                border-radius: 6px;
+                font-family: inherit;
+                font-size: 1rem;
+              "
+            />
+            <div style="display: flex; gap: 10px; margin-top: 10px">
+              <button
+                type="button"
+                id="back-to-cart-btn"
+                style="
+                  flex: 1;
+                  padding: 10px;
+                  border: 1px solid #ccc;
+                  background: #eee;
+                  border-radius: 6px;
+                  font-weight: 700;
+                  cursor: pointer;
+                  font-family: inherit;
+                "
+              >
+                Назад
+              </button>
+              <button
+                type="submit"
+                style="
+                  flex: 2;
+                  padding: 10px;
+                  border: none;
+                  background: var(--color6);
+                  color: var(--color8);
+                  border-radius: 6px;
+                  font-weight: 700;
+                  cursor: pointer;
+                  font-family: inherit;
+                "
+              >
+                Підтвердити замовлення
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- БЛОК 3: Повідомлення про успіх (приховане за замовчуванням) -->
+        <div
+          id="modal-success-block"
+          style="display: none; text-align: center; padding: 20px 0"
+        >
+          <i
+            class="ri-checkbox-circle-line"
+            style="font-size: 4rem; color: var(--color6)"
+          ></i>
+          <h3 style="margin-top: 15px; font-size: 1.4rem">
+            Замовлення успішно прийнято!
+          </h3>
+          <p
+            id="success-message-text"
+            style="margin-top: 10px; font-weight: 500; color: #666"
+          ></p>
+          <button
+            id="success-close-btn"
+            style="
+              margin-top: 20px;
+              padding: 10px 25px;
+              border: none;
+              background: var(--color3);
+              color: var(--color8);
+              border-radius: 6px;
+              font-weight: 700;
+              cursor: pointer;
+              font-family: inherit;
+            "
+          >
+            Чудово
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Шаблон для одного товару В КОШИКУ -->
+    <template id="cart-item-template">
+      <div class="cart-item">
+        <span class="cart-item-name">Назва товару</span>
+        <!-- Новий елемент для виведення кількості -->
+        <span class="cart-item-quantity">x1</span>
+        <span class="cart-item-price">0 ₴</span>
+        <button class="remove-from-cart-btn">
+          <i class="ri-delete-bin-line"></i>
+        </button>
+      </div>
+    </template>
+  </body>
+</html>
