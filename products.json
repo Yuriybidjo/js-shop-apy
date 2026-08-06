@@ -1,0 +1,20 @@
+[
+  {
+    "id": 101,
+    "name": "Базовий смартфон",
+    "price": 12000,
+    "img": "https://placehold.co/400x400"
+  },
+  {
+    "id": 102,
+    "name": "Бездротові навушники",
+    "price": 3700,
+    "img": "https://placehold.co/400x400"
+  },
+  {
+    "id": 103,
+    "name": "Механічна клавіатура",
+    "price": 2800,
+    "img": "https://placehold.co/400x400"
+  }
+]

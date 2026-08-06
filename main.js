@@ -1,19 +1,39 @@
 import { getSafeStorageItem } from './storage.js';
 import { renderProducts, isAdminMode, setIsAdminMode } from './products.js';
-import { updateCartIndicator, renderCartModal, clearCartArray } from './cart.js';
+// import { updateCartIndicator, renderCartModal, clearCartArray } from './cart.js';
+import { updateCartIndicator, renderCartModal, clearCartArray, cart } from './cart.js';
+
+
+// Функція для завантаження товарів із нашого локального "сервера"
+async function loadInitialProducts() {
+  try {
+    // 1. Робимо запит до файлу. fetch повертає об'єкт відповіді сервера
+    const response = await fetch('./products.json');
+
+    // Перевіряємо, чи успішно пройшов HTTP-запит (код 200-299)
+    if (!response.ok) {
+      throw new Error(`Помилка сервера: ${response.status}`);
+    }
+
+    // 2. Декодуємо текст JSON у звичайний масив JavaScript об'єктів
+    const serverProducts = await response.json();
+
+    // 3. Зберігаємо отримані з сервера дані в LocalStorage, щоб інші функції сайту працювали як зазвичай
+    localStorage.setItem('myProducts', JSON.stringify(serverProducts));
+
+    console.log('Товари успішно завантажені з сервера через fetch! 🎉');
+  } catch (error) {
+    console.error('Не вдалося завантажити товари з сервера:', error);
+  }
+}
+
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Дефолтні товари, якщо порожньо
-  if (getSafeStorageItem('myProducts').length === 0) {
-    localStorage.setItem('myProducts', JSON.stringify([
-      { id: 101, name: "Базовий смартфон", price: 12000, img: "https://placehold.co" },
-      { id: 102, name: "Бездротові навушники", price: 3700, img: "https://placehold.co" },
-      { id: 103, name: "Механічна клавіатура", price: 2800, img: "https://placehold.co" }
-    ]));
-  }
-
-  updateCartIndicator();
-  renderProducts();
+  // Запускаємо завантаження, і тільки КОЛИ воно завершиться — малюємо індикатор та вітрину
+  loadInitialProducts().then(() => {
+    updateCartIndicator();
+    renderProducts();
+  });
 
   // 1. Пошук
   const searchInput = document.getElementById('search-input');
@@ -83,27 +103,77 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 4. Оформлення замовлення
+  // 4. Оформлення замовлення та автоматична відправка в Telegram
   const orderForm = document.getElementById('order-form');
+
   if (orderForm) {
-    orderForm.addEventListener('submit', (event) => {
+    // Слово async перед (event) дозволяє нам використовувати await для fetch-запиту в мережу
+    orderForm.addEventListener('submit', async (event) => {
       event.preventDefault();
+
       const customerName = document.getElementById('customer-name')?.value.trim();
       const customerPhone = document.getElementById('customer-phone')?.value.trim();
       const totalSum = document.getElementById('modal-total-sum')?.textContent || '0';
 
-      const successText = document.getElementById('success-message-text');
-      if (successText) {
-        successText.textContent = `${customerName}, ми зателефонуємо вам на номер ${customerPhone}. Сума до сплати: ${totalSum} ₴`;
+      // 1. Формуємо красивий текст повідомлення, який прийде вам у Telegram
+      let message = `🔔 <b>Нове замовлення на сайті!</b>\n\n`;
+      message += `👤 <b>Покупець:</b> ${customerName}\n`;
+      message += `📞 <b>Телефон:</b> ${customerPhone}\n\n`;
+      message += `🛒 <b>Товари у кошику:</b>\n`;
+
+      cart.forEach(item => {
+        const itemPrice = parseFloat(item.price) || 0;
+        const itemQty = parseInt(item.quantity) || 1;
+        message += `• ${item.name} (x${itemQty}) — ${itemPrice * itemQty} ₴\n`;
+      });
+
+
+      message += `\n💰 <b>Загальна сума до сплати:</b> ${totalSum} ₴`;
+
+      // 2. Налаштування зв'язку з вашим Telegram-ботом (дані вже вставлені з вашого блокнота)
+      // const TELEGRAM_TOKEN = '8623180677:AAGNltqHLlxtv6EhfHKgYNkYX72zA2A4IEo';
+      const TELEGRAM_TOKEN = '8623180677:AAGnltqHLlxtv6EhfHKgYNkYX72zA2A4IEo';
+      const TELEGRAM_CHAT_ID = '1115783978';
+      const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+
+
+      try {
+        // 3. Надсилаємо асинхронний POST-запит на сервери Telegram
+        const response = await fetch(TELEGRAM_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: TELEGRAM_CHAT_ID,
+            text: message,
+            parse_mode: 'HTML' // Дозволяє використовувати теги жирного шрифту <b>
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Помилка відправки Telegram: ${response.status}`);
+        }
+
+        console.log('Замовлення успішно надіслано в Telegram чат розробника! 🚀');
+
+        // 4. Перемикаємо модальне вікно сторінки на Блок 3 (Успіх)
+        const successText = document.getElementById('success-message-text');
+        if (successText) {
+          successText.textContent = `${customerName}, ми зателефонуємо вам на номер ${customerPhone}. Сума до сплати: ${totalSum} ₴`;
+        }
+
+        if (checkoutBlock) checkoutBlock.style.display = 'none';
+        if (successBlock) successBlock.style.display = 'block';
+
+        // 5. Повністю очищуємо локальний кошик на сайті після успішної покупки
+        clearCartArray();
+        localStorage.removeItem('myCart');
+        updateCartIndicator();
+        orderForm.reset();
+
+      } catch (error) {
+        console.error('Помилка оформлення замовлення через мережу:', error);
+        alert('Упс! Сталася помилка при відправці замовлення. Спробуйте ще раз.');
       }
-
-      if (checkoutBlock) checkoutBlock.style.display = 'none';
-      if (successBlock) successBlock.style.display = 'block';
-
-      clearCartArray();
-      localStorage.removeItem('myCart');
-      updateCartIndicator();
-      orderForm.reset();
     });
   }
 });
