@@ -130,10 +130,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       message += `\n💰 <b>Загальна сума до сплати:</b> ${totalSum} ₴`;
 
-      // 2. Налаштування зв'язку з вашим Telegram-ботом (дані вже вставлені з вашого блокнота)
-      // const TELEGRAM_TOKEN = '8623180677:AAGNltqHLlxtv6EhfHKgYNkYX72zA2A4IEo';
-      const TELEGRAM_TOKEN = '8623180677:AAGnltqHLlxtv6EhfHKgYNkYX72zA2A4IEo';
-      const TELEGRAM_CHAT_ID = '1115783978';
+    
+      const TELEGRAM_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE'; // Замініть на ваш токен бота
+      const TELEGRAM_CHAT_ID = 'YOUR_TELEGRAM_CHAT_ID_HERE'; // Замініть на ваш chat_id
       const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
 
 
